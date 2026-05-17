@@ -1,73 +1,28 @@
 --[[
 AdiBags - Adirelle's bag addon.
-Copyright 2010-2021 Adirelle (adirelle@gmail.com)
+Copyright 2010 Adirelle (adirelle@tagada-team.net)
 All rights reserved.
-
-This file is part of AdiBags.
-
-AdiBags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-AdiBags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with AdiBags.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 
 local addonName, addon = ...
 local L = addon.L
 
---<GLOBALS
-local _G = _G
-local AddonCompartmentFrame = _G.AddonCompartmentFrame
-local format = _G.format
-local GameTooltip = _G.GameTooltip
-local GetAddOnMetadata = _G.C_AddOns.GetAddOnMetadata
-local GetContainerNumFreeSlots = C_Container and _G.C_Container.GetContainerNumFreeSlots or _G.GetContainerNumFreeSlots
-local GetContainerNumSlots = C_Container and _G.C_Container.GetContainerNumSlots or _G.GetContainerNumSlots
-local ipairs = _G.ipairs
-local pairs = _G.pairs
-local REAGENTBAG_CONTAINER = ( Enum.BagIndex and Enum.BagIndex.REAGENTBAG_CONTAINER ) or 5
-local strjoin = _G.strjoin
-local tconcat = _G.table.concat
-local tinsert = _G.tinsert
-local wipe = _G.wipe
---GLOBALS>
-
-local mod = addon:NewModule('DataSource', 'ABEvent-1.0', 'ABBucket-1.0')
+local mod = addon:NewModule('DataSource', 'AceEvent-3.0', 'AceBucket-3.0')
 mod.uiName = L['LDB Plugin']
 mod.uiDesc = L['Provides a LDB data source to be displayed by LDB display addons.']
 mod.cannotDisable = true
 
-local dataObject = {
-	type = "data source",
+local dataobj = {
+	type = 'data source',
 	label = addonName,
 	text = addonName,
 	icon = [[Interface\Buttons\Button-Backpack-Up]],
-	OnClick = function(_, mouseButton)
-		mouseButton = mouseButton.buttonName or mouseButton
-		if mouseButton == "RightButton" then
+	OnClick = function(_, button)
+		if button == "RightButton" then
 			addon:OpenOptions()
 		else
-			addon:ToggleBackpack()
+			addon:OpenAllBags()
 		end
-	end,
-	OnEnter = function(self)
-		local r, g, b = 0.2, 1, 0.2
-		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-		GameTooltip:AddDoubleLine(addonName, GetAddOnMetadata(addonName, "Version"))
-		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine(L["|cFFEDA55FLeft-click|r to toggle bags."], r, g, b)
-		GameTooltip:AddLine(L["|cFFEDA55FRight-click|r to toggle options."], r, g, b)
-		GameTooltip:Show()
-	end,
-	OnLeave = function()
-		GameTooltip:Hide()
 	end,
 }
 
@@ -86,74 +41,38 @@ end
 local created = false
 function mod:OnEnable()
 	if not created then
-		-- Addon compartment:
-		-- https://warcraft.wiki.gg/wiki/Addon_compartment
-		if AddonCompartmentFrame then
-			AddonCompartmentFrame:RegisterAddon({
-				text = addonName,
-				icon = dataObject.icon,
-				func = dataObject.OnClick,
-				funcOnEnter = dataObject.OnEnter,
-				funcOnLeave = dataObject.OnLeave,
-				registerForAnyClick = true,
-				notCheckable = true,
-			})
-		end
-
-		LibStub('LibDataBroker-1.1'):NewDataObject(addonName, dataObject)
+		LibStub('LibDataBroker-1.1'):NewDataObject(addonName, dataobj)
 		created = true
 	end
 	self:RegisterBucketEvent('BAG_UPDATE', 0.5, "Update")
-	if addon.isRetail or addon.isWrath or addon.isCata then
-		self:RegisterEvent('PLAYER_INTERACTION_MANAGER_FRAME_SHOW', 'BANKFRAME_OPENED')
-		self:RegisterEvent('PLAYER_INTERACTION_MANAGER_FRAME_HIDE', 'BANKFRAME_CLOSED')
-	else
-		self:RegisterEvent('BANKFRAME_OPENED')
-		self:RegisterEvent('BANKFRAME_CLOSED')
-	end
+	self:RegisterEvent('BANKFRAME_OPENED')
+	self:RegisterEvent('BANKFRAME_CLOSED')
 	self:Update()
 end
 
-function mod:BANKFRAME_OPENED(e, kind)
-	if addon.isRetail or addon.isWrath or addon.isCata then
-		if kind == Enum.PlayerInteractionType.Banker then
-			self.atBank = true
-			return self:Update()
-		end
-	else
-		self.atBank = true
-		return self:Update()
-	end
+function mod:BANKFRAME_OPENED()
+	self.atBank = true
+	return self:Update()
 end
 
-function mod:BANKFRAME_CLOSED(e, kind)
-	if addon.isRetail or addon.isWrath or addon.isCata then
-		if kind == Enum.PlayerInteractionType.Banker then
-			self.atBank = false
-			return self:Update()
-		end
-	else
-		self.atBank = false
-		return self:Update()
-	end
+function mod:BANKFRAME_CLOSED()
+	self.atBank = false
+	return self:Update()
 end
 
 local FAMILY_ORDER = {
-	0x00000, -- Regular bag
-	0x00001, -- Quiver
-	0x00002, -- Ammo Pouch
-	0x00004, -- Soul Bag
-	0x00008, -- Leatherworking Bag
-	0x00010, -- Inscription Bag
-	0x00020, -- Herb Bag
-	0x00040, -- Enchanting Bag
-	0x00080, -- Engineering Bag
-	0x00100, -- Keyring
-	0x00200, -- Gem Bag
-	0x00400, -- Mining Bag
-	0x00800, -- Reagent Bag
-	0x08000, -- Tackle Box
-	0x10000, -- Refrigerator
+	0x0000, -- Regular bag
+	0x0001, -- Quiver
+  0x0002, -- Ammo Pouch
+  0x0004, -- Soul Bag
+  0x0008, -- Leatherworking Bag
+  0x0010, -- Inscription Bag
+  0x0020, -- Herb Bag
+  0x0040, -- Enchanting Bag
+  0x0080, -- Engineering Bag
+  0x0100, -- Keyring
+  0x0200, -- Gem Bag
+  0x0400, -- Mining Bag
 }
 
 local size = {}
@@ -189,26 +108,32 @@ local function BuildSpaceString(bags)
 			local text = spaceformat:format(free[family], size[family], size[family] - free[family])
 			if showIcons and icon then
 				numIcons = numIcons + 1 -- fix a bug with fontstring embedding several textures
-				text = format("%s|T%s:0:0:0:%d:64:64:4:60:4:60|t", text, icon, -numIcons)
+				text = string.format("%s|T%s:0:0:0:%d:64:64:4:60:4:60|t", text, icon, -numIcons)
 			elseif (showIcons or showTags) and tag then
 				text = strjoin(':', tag, text)
 			end
 			tinsert(data, text)
 		end
 	end
-	return tconcat(data, " ")
+	return table.concat(data, " ")
 end
 
 function mod:Update(event)
 	local bags = BuildSpaceString(addon.BAG_IDS.BAGS)
 	if self.atBank and self.db.profile.showBank then
-		dataObject.text = format("%s |cff7777ff%s|r", bags, BuildSpaceString(addon.BAG_IDS.BANK))
+		dataobj.text = string.format("%s |cff7777ff%s|r", bags, BuildSpaceString(addon.BAG_IDS.BANK))
 	else
-		dataObject.text = bags
+		dataobj.text = bags
 	end
 end
 
 function mod:GetOptions()
+	local handler = addon:GetOptionHandler(self)
+	local oldSet = handler.Set
+	handler.Set = function(...)
+		oldSet(...)
+		self:Update()
+	end
 	return {
 		format = {
 			name = L['Bag usage format'],
@@ -248,5 +173,5 @@ function mod:GetOptions()
 			order = 50,
 			disabled = function(info) return info.handler:IsDisabled(info) or self.db.profile.mergeBags end,
 		},
-	}, addon:GetOptionHandler(self, false, function() return self:Update() end)
+	}, addon:GetOptionHandler(self)
 end
