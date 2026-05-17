@@ -25,6 +25,7 @@ function mod:OnInitialize()
 			showGlow = true,
 			glowScale = 1.5,
 			glowColor = { 0.3, 1, 0.3, 0.7 },
+			putInNewSection = true,
 		},
 	})
 	addon:SetCategoryOrder(L['New'], 100)
@@ -155,6 +156,11 @@ function mod:GetOptions()
 			type = 'color',
 			order = 30,
 			hasAlpha = true,
+		},
+		putInNewSection = {
+			name = L['Put new items in "New" section'],
+			type = 'toggle',
+			order = 60,
 		},
 	}, addon:GetOptionHandler(self)
 end
@@ -331,7 +337,7 @@ do
 	end
 
 	function mod:Filter(slotData)
-		if self:IsNew(slotData.itemId, currentContainerName) then
+		if mod.db.profile.putInNewSection and self:IsNew(slotData.itemId, currentContainerName) then
 			return L["New"]
 		end
 	end
